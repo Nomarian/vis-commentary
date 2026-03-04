@@ -149,13 +149,14 @@ local function uncomment_line(lines, lnum, prefix, suffix)
 end
 
 local function is_comment(line, prefix)
-    return (line:match("^%s*(.+)"):sub(0, #prefix) == prefix)
+    local s = line:find'%S'
+    return s and (prefix == line:sub(s, s + #prefix - 1)) or false
 end
 
 local function toggle_line_comment(lines, lnum, prefix, suffix)
     local line = lines and lines[lnum]
     if not line then return end
-    if line:match"^%s*$" then return end -- ignore empty lines
+    if line:find"^%s*$" then return end -- ignore empty lines
     if is_comment(line, prefix) then
         uncomment_line(lines, lnum, prefix, suffix)
     else
@@ -169,14 +170,14 @@ local function block_comment(lines, a, b, prefix, suffix)
     local modify_line = uncomment_line
     for i=a,b do
         local line = lines[i]
-        if line:match("^%s*(.+)") and not is_comment(line, prefix) then
+        if line:find"%S" and not is_comment(line, prefix) then
             modify_line = comment_line
             break
         end
     end
 
     for i=a,b do
-        if lines[i]:match("^%s*(.+)") then
+        if lines[i]:find"%S" then
             modify_line(lines, i, prefix, suffix)
         end
     end
