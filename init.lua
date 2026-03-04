@@ -166,9 +166,9 @@ end
 
 -- if one line inside the block is not a comment, comment the block.
 -- only uncomment, if every single line is comment.
-local function block_comment(lines, a, b, prefix, suffix)
+local function block_comment(lines, line_start, line_end, prefix, suffix)
     local modify_line = uncomment_line
-    for i=a,b do
+    for i=line_start,line_end do
         local line = lines[i]
         if line:find"%S" and not is_comment(line, prefix) then
             modify_line = comment_line
@@ -176,7 +176,7 @@ local function block_comment(lines, a, b, prefix, suffix)
         end
     end
 
-    for i=a,b do
+    for i=line_start,line_end do
         if lines[i]:find"%S" then
             modify_line(lines, i, prefix, suffix)
         end
@@ -188,26 +188,26 @@ vis:operator_new("gc", function(file, range, pos)
     local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
     if not prefix then return end
 
-    local c = 0
-    local i = 1
-    local a = -1
-    local b = -1
+    -- match range position to its line[] position
+    -- block comment only comments lines, not ranges.
+    local c = 0 -- cursor position
+    local i = 1 -- index/line
+    local start, fin = -1, -1 -- line start/end
     for line in file:lines_iterator() do
         local line_start = c
         local line_finish = c + #line + 1
         if line_start < range.finish and line_finish > range.start then
-            if a == -1 then
-                a = i
-                b = i
-            else
-                b = i
+            if start == -1 then
+                start = i
             end
+            fin = i
         end
         c = line_finish
         if c > range.finish then break end
         i = i + 1
     end
-    block_comment(file.lines, a, b, prefix, suffix)
+
+    block_comment(file.lines, start, fin, prefix, suffix)
 
     return range.start
 end, "Toggle comment on selected lines")
