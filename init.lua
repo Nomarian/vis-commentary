@@ -3,8 +3,10 @@
 --
 
 local vis = _G.vis
+local M = {}
 
-local comment_map = {
+local comments_repl = {
+    -- syntax = comment_line  OR   block_comment_start|block_comment_end
     actionscript='//',
     ada='--',
     ansi_c='/*|*/',
@@ -127,6 +129,7 @@ local comment_map = {
     rpmspec='#',
     caml='(*|*)'
 }
+M.comments_repl = comments_repl
 
 -- escape all magic characters with a '%'
 local function esc(str)
@@ -183,8 +186,8 @@ local function block_comment(lines, line_start, line_end, prefix, suffix)
     end
 end
 
-vis:operator_new("gc", function(file, range, pos)
-    local comment = comment_map[vis.win.syntax]
+local function BlocksOperator(file, range, pos)
+    local comment = comments_repl[vis.win.syntax]
     local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
     if not prefix then return end
 
@@ -209,12 +212,12 @@ vis:operator_new("gc", function(file, range, pos)
     block_comment(file.lines, start, fin, prefix, suffix)
 
     return range.start
-end, "Toggle comment on selected lines")
+end
 
-vis:map(vis.modes.NORMAL, "gcc", function()
+local function CommentCurrentLine()
     local win = vis.win
     local lines = win.file.lines
-    local comment = comment_map[win.syntax]
+    local comment = comments_repl[win.syntax]
     if not comment then return end
     local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
     if not prefix then return end
@@ -228,4 +231,25 @@ vis:map(vis.modes.NORMAL, "gcc", function()
     end
 
     win:draw()
-end, "Toggle comment on a the current line")
+end
+
+function M.MapBlocks(
+    key -- string|nil --
+)
+    vis:operator_new(key or "gc", BlocksOperator
+        , "Toggle comment on selected lines")
+end
+
+function M.MapLine(
+    key -- string|nil --
+)
+    vis:map(
+        vis.modes.NORMAL, key or "gcc"
+        , CommentCurrentLine
+        , "Toggle comment on a the current line")
+end
+
+-- Setup bindings to the default
+function M.Setup() M.MapBlocks() M.MapLine() end
+
+return setmetatable(M, {__call = M.Setup})
