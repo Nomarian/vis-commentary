@@ -4,7 +4,7 @@
 
 local vis = _G.vis
 
-local comment_string = {
+local comment_map = {
     actionscript='//',
     ada='--',
     ansi_c='/*|*/',
@@ -184,12 +184,12 @@ local function block_comment(lines, line_start, line_end, prefix, suffix)
 end
 
 vis:operator_new("gc", function(file, range, pos)
-    local comment = comment_string[vis.win.syntax]
+    local comment = comment_map[vis.win.syntax]
     local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
     if not prefix then return end
 
     -- match range position to its line[] position
-    -- block comment only comments lines, not ranges.
+    -- block_comment only comments lines, not ranges.
     local c = 0 -- cursor position
     local i = 1 -- index/line
     local start, fin = -1, -1 -- line start/end
@@ -206,7 +206,6 @@ vis:operator_new("gc", function(file, range, pos)
         if c > range.finish then break end
         i = i + 1
     end
-
     block_comment(file.lines, start, fin, prefix, suffix)
 
     return range.start
@@ -215,7 +214,7 @@ end, "Toggle comment on selected lines")
 vis:map(vis.modes.NORMAL, "gcc", function()
     local win = vis.win
     local lines = win.file.lines
-    local comment = comment_string[win.syntax]
+    local comment = comment_map[win.syntax]
     if not comment then return end
     local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
     if not prefix then return end
@@ -230,4 +229,3 @@ vis:map(vis.modes.NORMAL, "gcc", function()
 
     win:draw()
 end, "Toggle comment on a the current line")
-
