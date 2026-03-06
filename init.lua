@@ -6,10 +6,11 @@ local vis = _G.vis
 local M = {}
 
 local comments_repl = {
-    -- syntax = comment_line  OR   block_comment_start|block_comment_end
+    -- syntax = comment_line  OR  {L?=line, P?=prefix, S?=suffix}
+    -- You MUST have either a prefix or line, else its an error
     actionscript='//',
     ada='--',
-    ansi_c='/*|*/',
+    ansi_c={P='/*',S='*/'},
     antlr='//',
     apdl='!',
     apl='#',
@@ -27,15 +28,15 @@ local comments_repl = {
     cmake='#',
     coffeescript='#',
     context='%',
-    c='/*|*/',
+    c={P='/*',S='*/'},
     cpp='//',
     crystal='#',
     csharp='//',
-    css='/*|*/',
+    css = {P='/*',S='*/'},
     cuda='//',
     dart='//',
     desktop='#',
-    django='{#|#}',
+    django = {P='{#',S='#}'},
     dmd='//',
     dockerfile='#',
     dot='//',
@@ -57,7 +58,7 @@ local comments_repl = {
     groovy='//',
     gtkrc='#',
     haskell='--',
-    html='<!--|-->',
+    html = {P='<!--', S='-->'},
     icon='#',
     idl='//',
     inform='!',
@@ -65,7 +66,7 @@ local comments_repl = {
     Io='#',
     java='//',
     javascript='//',
-    json='/*|*/',
+    json = {P='/*',S='*/'},
     jsp='//',
     latex='%',
     ledger='#',
@@ -73,9 +74,9 @@ local comments_repl = {
     lilypond='%',
     lisp=';',
     logtalk='%',
-    lua='--',
+    lua = {L='--', P='--[[', S=']]'},
     makefile='#',
-    markdown='<!--|-->',
+    markdown = {P='<!--', S='-->'},
     matlab='#',
     moonscript='--',
     myrddin='//',
@@ -97,10 +98,9 @@ local comments_repl = {
     rails='#',
     rc='#',
     rebol=';',
-    -- nroff style format
     rest='.. ', -- technically, ..\n, but that would break everything
     rexx='--',
-    rhtml='<!--|-->',
+    rhtml = {P='<!--', S='-->'},
     rstats='#',
     troff=[[.\"]],
     ruby='#',
@@ -108,28 +108,32 @@ local comments_repl = {
     sass='//',
     scala='//',
     scheme=';',
-    smalltalk='"|"',
+    smalltalk = {P='"', S='"'},
     sml='(*)',
     snobol4='#',
     sql='#',
     tcl='#',
     tex='%',
-    text='',
     toml='#',
     vala='//',
     vb="'",
     vbscript="'",
     verilog='//',
     vhdl='--',
-    wsf='<!--|-->',
-    xml='<!--|-->',
+    wsf={P='<!--', S='-->'},
+    xml={P='<!--', S='-->'},
     yaml='#',
     zig='//',
     nim='#',
     julia='#',
     rpmspec='#',
-    caml='(*|*)'
+    caml = { P='(*', S='*)' },
 }
+for k,v in pairs(comments_repl) do
+    if type(v)=="string" then
+        comments_repl[k] = {L=v} -- TODO: kinda wasteful doing this
+    end
+end
 M.comments_repl = comments_repl
 
 -- escape all magic characters with a '%'
@@ -188,33 +192,61 @@ local function block_comment(lines, line_start, line_end, prefix, suffix)
     return modify_line == comment_line
 end
 
+-- TODO: modes should be in vis-std.lua
+local modes = {}
+for k,v in pairs( vis.modes ) do
+    modes[k], modes[v] = v, k
+end
+
+-- I don't like this name, because it comment a section not a block
 local function BlocksOperator(file, range, pos)
     local comment = comments_repl[vis.win.syntax]
     if not comment then return pos end
-    local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
-    if not prefix then return pos end
+    local prefix, suffix = comment.P or comment.L, comment.S
+    local cursor = range.start
 
-    -- match range position to its line[] position
-    -- block_comment only comments lines, not ranges.
-    local c = 0 -- cursor position
-    local i = 1 -- index/line
-    local start, fin = -1, -1 -- line start/end
-    for line in file:lines_iterator() do
-        local line_start = c
-        local line_finish = c + #line + 1
-        if line_start < range.finish and line_finish > range.start then
-            if start == -1 then
-                start = i
+    if modes[vis.mode]=="VISUAL_LINE" or suffix==nil then
+        -- match range position to its line[] position
+        -- block_comment only comments lines, not ranges.
+        local c = 0 -- cursor position
+        local i = 1 -- index/line
+        local start, fin = -1, -1 -- line start/end
+        for line in file:lines_iterator() do
+            local line_start = c
+            local line_finish = c + #line + 1
+            if line_start < range.finish and line_finish > range.start then
+                if start == -1 then
+                    start = i
+                end
+                fin = i
             end
-            fin = i
+            c = line_finish
+            if c > range.finish then break end
+            i = i + 1
         end
-        c = line_finish
-        if c > range.finish then break end
-        i = i + 1
+        if comment.L then prefix, suffix = comment.L, '' end
+        block_comment(file.lines, start, fin, prefix, suffix or '')
+    elseif suffix and prefix then
+        if -- selection starts with a comment/prefix, uncomment
+            file:content(range.start, #prefix)==prefix
+            and -- must end with suffix
+            file:content(range.finish-#suffix, #suffix)==suffix
+        then -- uncomment
+            file:delete(range.finish-#suffix, #suffix) -- erase suffix
+            file:delete(range.start, #prefix) -- erase prefix
+        else -- comment
+            file:insert(range.finish, suffix) -- append
+            file:insert(range.start, prefix) -- prepend
+        end
+    else
+        vis:message(
+            string.format('ERROR: vis-commentary: syntax: %s, prefix: %s suffix: %s'
+                , comment, prefix, suffix
+        )   )
+        return pos
     end
-    block_comment(file.lines, start, fin, prefix, suffix)
 
-    return range.start
+    return cursor -- TODO: Try not to move
 end
 
 local function CommentCurrentLine()
@@ -222,14 +254,15 @@ local function CommentCurrentLine()
     local lines = win.file.lines
     local comment = comments_repl[win.syntax]
     if not comment then return end
-    local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
-    if not prefix then return end
+    local prefix, suffix = comment.L or comment.P, comment.S if comment.L then
+        suffix = nil
+    end
 
     for sel in win:selections_iterator() do
         local lnum = sel.line
         local col = sel.col
 
-        toggle_line_comment(lines, lnum, prefix, suffix)
+        toggle_line_comment(lines, lnum, prefix, suffix or '')
         sel:to(lnum, col)  -- restore cursor position
     end
 
