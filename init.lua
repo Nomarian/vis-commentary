@@ -253,6 +253,6 @@ function M.MapLine(
 end
 
 -- Setup bindings to the default
-function M.Setup() M.MapBlocks() M.MapLine() end
+function M.SetDefaults() M.MapBlocks() M.MapLine() end
 
-return setmetatable(M, {__call = M.Setup})
+return setmetatable(M, {__call = M.SetDefaults})
