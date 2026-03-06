@@ -184,12 +184,14 @@ local function block_comment(lines, line_start, line_end, prefix, suffix)
             modify_line(lines, i, prefix, suffix)
         end
     end
+    return modify_line == comment_line
 end
 
 local function BlocksOperator(file, range, pos)
     local comment = comments_repl[vis.win.syntax]
+    if not comment then return pos end
     local prefix, suffix = comment:match('^([^|]+)|?([^|]*)$')
-    if not prefix then return end
+    if not prefix then return pos end
 
     -- match range position to its line[] position
     -- block_comment only comments lines, not ranges.
