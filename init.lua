@@ -14,6 +14,7 @@ local comments_repl = {
     apdl='!',
     apl='#',
     applescript='--',
+    asciidoc = '//',
     asp="'",
     autoit=';',
     awk='#',
