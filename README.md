@@ -24,16 +24,16 @@ MapLine(key)
 
 ### API
 
-comments_repl: table -> {lexer: string} -- lexer -> "line" or "prefix|suffix"
-function MapBlocks(key: string|nil) -- Maps "gc"|<key> to comment selected block
-function MapLine(key: string|nil) -- Maps "gcc"|<key> to comment the current line
+comments_repl: table -> {lexer: table}
+	lexer -> {P="prefix", S="suffix", L="line"}
+	WARNING: P or L must be set or an error will occur
+function MapBlocks(key: string|nil) -- Binds "gc"|<key> to comment selections/block
+function MapLine(key: string|nil) -- Binds "gcc"|<key> to comment the current line
 function SetDefaults() -- Sets default keybindings
 
 ### Bugs
 
-* positioning changes upon use
-* block comments are not supported
-* rst is not wholly correct. multiline comments are not well supported.
+* multiline block comments with indentation endings are not supported. (rst)
 
 ### Notes
 
