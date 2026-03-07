@@ -208,25 +208,22 @@ local function BlocksOperator(file, range, pos)
     if modes[vis.mode]=="VISUAL_LINE" or suffix==nil then
         -- match range position to its line[] position
         -- block_comment only comments lines, not ranges.
-        local c = 0 -- cursor position
-        local i = 1 -- index/line
-        local start, fin = -1, -1 -- line start/end
-        for line in file:lines_iterator() do
-            local line_start = c
-            local line_finish = c + #line + 1
-            if line_start < range.finish and line_finish > range.start then
-                if start == -1 then
-                    start = i
-                end
-                fin = i
+        local iter = {file:lines_iterator()}
+        local cpos, line_start = 0, 1
+            for line in table.unpack(iter) do
+                cpos = cpos + #line
+                if cpos>range.start then break end
+                cpos, line_start = cpos + 1, line_start + 1 -- newline added
             end
-            c = line_finish
-            if c > range.finish then break end
-            i = i + 1
-        end
-        if comment.L then prefix, suffix = comment.L, '' end
+            local line_end = line_start
+            for line in table.unpack(iter) do
+                cpos = cpos + #line
+                if cpos>range.finish then break end
+                cpos, line_end = cpos + 1, line_end + 1
+            end
 
-        if block_comment(file.lines, start, fin, prefix, suffix or '') then
+        if comment.L then prefix, suffix = comment.L, '' end
+        if block_comment(file.lines, line_start, line_end, prefix, suffix or '') then
             return cursor + #prefix
         end
     elseif suffix and prefix then
