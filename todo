@@ -1,0 +1,19 @@
+
+looping to find where in line range is should be a function on its own, or vis itself should tell you where it is
+
+block comment could be simplified
+one less if, basically, save the iterator for lines, check for the start of range
+then break, set line_start, rerun the iterator again which has kept the state
+then you just continue and when it goes out of bounds, break again
+but now save the last line
+you can also just
+	local _, start_line = file:content(0, range.start):gsub("\n","\n")
+	local _, end_line = file:content(range.start, range.finish):gsub("\n","\n")
+	got the count, now you know where the line begins, quickly and easily
+
+
+rst is not good enough, .. can comment the line, but its not meant to
+..
+	this is a comment
+	and it ends
+when indent stops

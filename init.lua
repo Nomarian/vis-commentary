@@ -165,11 +165,11 @@ local function toggle_line_comment(lines, lnum, prefix, suffix)
     local line = lines and lines[lnum]
     if not line then return end
     if line:find"^%s*$" then return end -- ignore empty lines
-    if is_comment(line, prefix) then
-        uncomment_line(lines, lnum, prefix, suffix)
-    else
-        comment_line(lines, lnum, prefix, suffix)
-    end
+    -- is comment, so uncomment
+    local iscomment = is_comment(line, prefix)
+    local Toggle = iscomment and uncomment_line or comment_line
+    Toggle(lines, lnum, prefix, suffix)
+    return iscomment
 end
 
 -- if one line inside the block is not a comment, comment the block.
@@ -225,7 +225,10 @@ local function BlocksOperator(file, range, pos)
             i = i + 1
         end
         if comment.L then prefix, suffix = comment.L, '' end
-        block_comment(file.lines, start, fin, prefix, suffix or '')
+
+        if block_comment(file.lines, start, fin, prefix, suffix or '') then
+            return cursor + #prefix
+        end
     elseif suffix and prefix then
         if -- selection starts with a comment/prefix, uncomment
             file:content(range.start, #prefix)==prefix
@@ -237,16 +240,16 @@ local function BlocksOperator(file, range, pos)
         else -- comment
             file:insert(range.finish, suffix) -- append
             file:insert(range.start, prefix) -- prepend
+            return cursor + #prefix
         end
     else
         vis:message(
             string.format('ERROR: vis-commentary: syntax: %s, prefix: %s suffix: %s'
                 , comment, prefix, suffix
         )   )
-        return pos
     end
 
-    return cursor -- TODO: Try not to move
+    return cursor
 end
 
 local function CommentCurrentLine()
@@ -260,10 +263,12 @@ local function CommentCurrentLine()
 
     for sel in win:selections_iterator() do
         local lnum = sel.line
-        local col = sel.col
-
-        toggle_line_comment(lines, lnum, prefix, suffix or '')
-        sel:to(lnum, col)  -- restore cursor position
+        local column = sel.col
+        local curpos = #prefix+1
+        if toggle_line_comment(lines, lnum, prefix, suffix or '') then -- uncommented
+            curpos = -curpos
+        end
+        sel:to(lnum, column + curpos) -- restore cursor position
     end
 
     win:draw()
@@ -272,17 +277,17 @@ end
 function M.MapBlocks(
     key -- string|nil --
 )
-    vis:operator_new(key or "gc", BlocksOperator
-        , "Toggle comment on selected lines")
+    key = key or 'gc'
+    vis:operator_new(key, BlocksOperator, "Toggle comment on selected lines")
 end
 
 function M.MapLine(
     key -- string|nil --
 )
     vis:map(
-        vis.modes.NORMAL, key or "gcc"
-        , CommentCurrentLine
-        , "Toggle comment on a the current line")
+        vis.modes.NORMAL, key or "gcc", CommentCurrentLine
+        , "Toggle comment on a the current line"
+    )
 end
 
 -- Setup bindings to the default
