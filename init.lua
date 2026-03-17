@@ -265,7 +265,8 @@ local function CommentCurrentLine()
         if toggle_line_comment(lines, lnum, prefix, suffix or '') then -- uncommented
             curpos = -curpos
         end
-        sel:to(lnum, column + curpos) -- restore cursor position
+        curpos = column + curpos
+        sel:to(lnum, curpos<0 and 0 or curpos) -- restore cursor position
     end
 
     win:draw()
