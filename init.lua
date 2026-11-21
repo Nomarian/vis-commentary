@@ -57,6 +57,7 @@ local comments_repl = {
     go='//',
     groovy='//',
     gtkrc='#',
+    hare='//',
     haskell='--',
     html = {P='<!--', S='-->'},
     icon='#',
