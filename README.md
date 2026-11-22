@@ -12,7 +12,7 @@ require("plugins/vis-commentary")()
 
 | Keybind | Description |
 |---------|-------------|
-| `gcc`   | Toggle comment of the current line in NORMAL mode.|
+| `gcc`   | Toggle comment of the current line in NORMAL mode or the lines selected in VISUAL-LINE mode|
 | `gc`    | Toggle comment on the target of a motion (for example: `gj` to comment this and next line) |
 
 ### Configuration
