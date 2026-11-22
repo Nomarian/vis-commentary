@@ -19,17 +19,21 @@ require("plugins/vis-commentary")()
 
 If you do not wish the default keybinds, you may change the bindings via using the functions
 
+```
 MapBlocks(key)
 MapLine(key)
+```
 
 ### API
 
+```
 comments_repl: table -> {lexer: table}
 	lexer -> {P="prefix", S="suffix", L="line"}
 	WARNING: P or L must be set or an error will occur
 function MapBlocks(key: string|nil) -- Binds "gc"|<key> to comment selections/block
 function MapLine(key: string|nil) -- Binds "gcc"|<key> to comment the current line
 function SetDefaults() -- Sets default keybindings
+```
 
 ### Bugs
 
